@@ -1,6 +1,5 @@
 import org.ajoberstar.grgit.Grgit
-import java.nio.file.Files.exists
-import java.nio.file.Files.walk
+import org.eclipse.jgit.submodule.SubmoduleStatusType.UNINITIALIZED
 import java.nio.file.Path
 import java.nio.file.Paths.get
 
@@ -20,18 +19,53 @@ dependencies {
     swaggerCodegen ("io.swagger:swagger-codegen-cli:2.4.+")
 }
 
-val repoDir: Path = get("Repo-Models")
-val groupName = "gen sp-api"
+val urlModel = "https://github.com/amzn/selling-partner-api-models.git"
+val dirModel: Path = get("selling-partner-api-models")
+val groupName = "sp-api"
 
-task("cloneModels") {
+task("initModel") {
     group = groupName
     doLast{
-        if(exists(repoDir))
-            walk(repoDir).forEach { i -> delete(i) }
-        val repo = Grgit.clone{
-            dir=repoDir
-            uri="https://github.com/amzn/selling-partner-api-models.git"
+        val grgit = Grgit.open{ dir = projectDir }
+        val jgit = grgit.repository.jgit
+        val status = jgit.submoduleStatus().call()[dirModel.toString()]
+        status ?: throw Exception("Submodule -> Model not exist")
+        if(status.type == UNINITIALIZED) {
+            logger.info("Initialing submodules")
+            jgit.submoduleInit().call().forEach(logger::info)
         }
+        logger.info("Updating submodules")
+        jgit.submoduleUpdate().call().forEach(logger::info)
+        grgit.close()
+        //Checkout main
+        val repo = Grgit.open { currentDir=projectDir.toPath().resolve(dirModel) }
+        repo.checkout{ branch="main" }
         repo.close()
     }
+}
+
+task("updateModel"){
+    group = groupName
+    doLast{
+        val repo = Grgit.open { currentDir=projectDir.toPath().resolve(dirModel) }
+        repo.pull()
+        repo.close()
+        val mainRepo = Grgit.open{ dir = projectDir }
+        if (mainRepo.status().Changes().modified.contains(".gitmodules"))
+            mainRepo.commit {
+                message = "Update Model"
+                paths = setOf(".gitmodules")
+            }
+        mainRepo.close()
+    }
+}
+
+task("processModel"){
+    group=groupName
+    doLast{
+    }
+}
+
+task("genApiCode"){
+    group = groupName
 }
