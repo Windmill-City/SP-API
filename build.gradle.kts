@@ -51,7 +51,8 @@ task("updateModel"){
         repo.pull()
         repo.close()
         val mainRepo = Grgit.open{ dir = projectDir }
-        if (mainRepo.status().Changes().modified.contains(".gitmodules"))
+        val status = mainRepo.status()
+        if (status.staged.modified.contains(".gitmodules") || status.unstaged.modified.contains(".gitmodules"))
             mainRepo.commit {
                 message = "Update Model"
                 paths = setOf(".gitmodules")
