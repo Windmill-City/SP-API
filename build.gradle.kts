@@ -65,6 +65,7 @@ task("updateModel"){
                 paths = setOf(".gitmodules")
             }
         }
+        println("Already up-to-date")
         mainRepo.close()
     }
 }
