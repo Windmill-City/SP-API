@@ -6,10 +6,21 @@ Add to your `settings.gradle`
 include ':sp-api'
 project(':sp-api').projectDir = file('./SP-API/generated')
 ```
+Or `settings.gradle.kts`
+```kotlin
+include(":sp-api")
+project(":sp-api").projectDir = file("./SP-API/generated")
+```
 Add to your `build.gradle`
 ```groovy
 dependencies {
     implementation project('sp-api')
+}
+```
+Or `build.gradle.kts`
+```kotlin
+dependencies {
+    implementation(project("sp-api"))
 }
 ```
 Sync
