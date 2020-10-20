@@ -1,0 +1,130 @@
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+group = 'city.windmill'
+version = '1.0.0'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.3.+'
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:1.5'
+    }
+}
+
+repositories {
+    jcenter()
+}
+
+
+if(hasProperty('target') && target == 'android') {
+
+    apply plugin: 'com.android.library'
+    apply plugin: 'com.github.dcendents.android-maven'
+
+    android {
+        compileSdkVersion 25
+        buildToolsVersion '25.0.2'
+        defaultConfig {
+            minSdkVersion 14
+            targetSdkVersion 25
+        }
+        compileOptions {
+            sourceCompatibility JavaVersion.VERSION_1_8
+            targetCompatibility JavaVersion.VERSION_1_8
+        }
+
+        // Rename the aar correctly
+        libraryVariants.all { variant ->
+            variant.outputs.each { output ->
+                def outputFile = output.outputFile
+                if (outputFile != null && outputFile.name.endsWith('.aar')) {
+                    def fileName = "${project.name}-${variant.baseName}-${version}.aar"
+                    output.outputFile = new File(outputFile.parent, fileName)
+                }
+            }
+        }
+
+        dependencies {
+            provided 'javax.annotation:jsr250-api:1.0'
+        }
+    }
+
+    afterEvaluate {
+        android.libraryVariants.all { variant ->
+            def task = project.tasks.create "jar${variant.name.capitalize()}", Jar
+            task.description = "Create jar artifact for ${variant.name}"
+            task.dependsOn variant.javaCompile
+            task.from variant.javaCompile.destinationDir
+            task.destinationDir = project.file("${project.buildDir}/outputs/jar")
+            task.archiveName = "${project.name}-${variant.baseName}-${version}.jar"
+            artifacts.add('archives', task);
+        }
+    }
+
+    task sourcesJar(type: Jar) {
+        from android.sourceSets.main.java.srcDirs
+        classifier = 'sources'
+    }
+
+    artifacts {
+        archives sourcesJar
+    }
+
+} else {
+
+    apply plugin: 'java'
+    apply plugin: 'maven'
+
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    install {
+        repositories.mavenInstaller {
+            pom.artifactId = 'sp-api'
+        }
+    }
+
+    task execute(type:JavaExec) {
+       main = System.getProperty('mainClass')
+       classpath = sourceSets.main.runtimeClasspath
+    }
+}
+
+dependencies {
+    implementation 'io.swagger:swagger-annotations:1.5.17'
+
+    // https://mvnrepository.com/artifact/org.projectlombok/lombok
+    implementation group: 'org.projectlombok', name: 'lombok', version: '1.18.16'
+    //Lombok Processor
+    annotationProcessor group: 'org.projectlombok', name: 'lombok', version: '1.18.16'
+
+    // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-signer
+    implementation group: 'com.amazonaws', name: 'aws-java-sdk-signer', version: '1.11.882'
+    // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-sts
+    implementation group: 'com.amazonaws', name: 'aws-java-sdk-sts', version: '1.11.882'
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.11'
+    // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
+    implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13'
+    // https://mvnrepository.com/artifact/com.squareup.okhttp/okhttp
+    implementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.7.5'
+    // https://mvnrepository.com/artifact/com.squareup.okhttp/logging-interceptor
+    implementation group: 'com.squareup.okhttp', name: 'logging-interceptor', version: '2.7.5'
+    // https://mvnrepository.com/artifact/com.google.code.gson/gson
+    implementation group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
+    // https://mvnrepository.com/artifact/io.gsonfire/gson-fire
+    implementation group: 'io.gsonfire', name: 'gson-fire', version: '1.8.4'
+    // https://mvnrepository.com/artifact/org.mockito/mockito-core
+    testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.5.13'
+    // https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: '5.7.0'
+    // https://mvnrepository.com/artifact/junit/junit
+    testImplementation group: 'junit', name: 'junit', version: '4.13.1'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}

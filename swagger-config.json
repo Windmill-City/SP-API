@@ -1,0 +1,11 @@
+{
+  "library": "okhttp-gson",
+  "dateLibrary": "java8",
+  "hideGenerationTimestamp": true,
+  "developerName": "windmill-city",
+  "invokerPackage": "city.windmill.sp",
+  "modelPackage": "city.windmill.sp.model",
+  "apiPackage": "city.windmill.sp.api",
+  "groupId": "city.windmill",
+  "artifactId": "sp-api"
+}

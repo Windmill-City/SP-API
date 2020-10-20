@@ -1,6 +1,9 @@
 import org.ajoberstar.grgit.Grgit
+import org.hidetake.gradle.swagger.generator.GenerateSwaggerCode
 import java.nio.file.Files
+import java.nio.file.Files.walk
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 plugins{
     id("org.hidetake.swagger.generator") version "2.18.2"
@@ -19,7 +22,7 @@ dependencies {
 }
 
 val urlModel = "https://github.com/amzn/selling-partner-api-models.git"
-val groupName = "sp-api"
+val groupName = "sp-api-codegen"
 //Model-Dir
 val dirModel: Path = projectDir.toPath().resolve("selling-partner-api-models")
 //Client
@@ -30,6 +33,10 @@ val clientTest: Path = clientJava.resolve("tst")
 //Model
 val models: Path = dirModel.resolve("models")
 val modelRegex: Regex = Regex("""^([a-zA-Z]+)(?:V0|_[\-0-9]+)?\.json$""")
+//Output
+val dirOutput: Path = projectDir.toPath().resolve("generated")
+//ConfigFile
+val pathConfig: Path = projectDir.toPath().resolve("swagger-config.json")
 
 task("initModel") {
     group = groupName
@@ -70,31 +77,72 @@ task("updateModel"){
     }
 }
 
-task("gen-All") {
-    group = groupName
-}
-
 task("processModel") {
     group = groupName
-    inputs.dir(models)
-    dependsOn("initModel")
-    doLast {
+    if(Files.exists(models)) {
         var i = 0
-        Files.walk(models).forEach {
+        walk(models).forEach {
             val matchResult = modelRegex.matchEntire(it.fileName.toString())
             if (matchResult != null) {
                 i++
                 val taskName = matchResult.groups[1]!!.value
-                project.tasks.register("gen-${taskName}") {
+                project.tasks.register("gen-${taskName}", GenerateSwaggerCode::class) {
                     group = groupName
-                    inputs.file(it)
-                    tasks["gen-All"].dependsOn(taskName)
-                    doLast {
-                        println(it)
-                    }
+                    //Swagger
+                    language = "java"
+                    inputFile = it.toFile()
+                    outputDir = dirOutput.toFile()
+                    wipeOutputDir = false
+                    configFile = pathConfig.toFile()
+                    templateDir = clientTemplates.toFile()
                 }
             }
         }
         println("Generated $i tasks")
+    }else println("initModel before generate code")
+}
+
+task("gen-LWA"){
+    doLast {
+        val destSrc = dirOutput.resolve("src/main/java")
+        val destTest = dirOutput.resolve("src/test/java")
+        copyDir(clientSrc, destSrc)
+        copyDir(clientTest, destTest)
     }
+}
+
+task("cleanOutput"){
+    group = groupName
+    doLast {
+        val dirDocs = dirOutput.resolve("docs")
+        val destSrc = dirOutput.resolve("src/main/java")
+        val destTest = dirOutput.resolve("src/test/java")
+        cleanDir(dirDocs)
+        cleanDir(destSrc)
+        cleanDir(destTest)
+    }
+}
+
+task("gen-All"){
+    group = groupName
+    setDependsOn(tasks.filter { it.name.startsWith("gen-") && it != this })
+    doLast { println("Code generate Done!") }
+}
+
+fun copyDir(source: Path, destSrc: Path, copyOption: java.nio.file.StandardCopyOption = REPLACE_EXISTING) {
+    walk(source).forEach {
+        if (it != source) {
+            val relaPath = source.relativize(it)
+            val destPath = destSrc.resolve(relaPath)
+            if (Files.isDirectory(it)) {
+                if (Files.notExists(destPath)) Files.createDirectory(destPath)
+            }
+            else
+                Files.copy(it, destPath, copyOption)
+        }
+    }
+}
+
+fun cleanDir(dirDocs: Path) {
+    if (Files.exists(dirDocs)) walk(dirDocs).forEach { if (it != dirDocs) delete(it) }
 }
